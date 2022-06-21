@@ -1,6 +1,7 @@
 const std = @import("std");
 const bb = @import("bitboard.zig");
 const attacks = @import("attacks.zig");
+const movegen = @import("movegen.zig");
 
 pub fn main() anyerror!void {
     // Note that info level log messages are by default printed only in Debug

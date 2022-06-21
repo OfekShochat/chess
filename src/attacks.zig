@@ -1,5 +1,6 @@
 const bb = @import("bitboard.zig");
 const magics = @import("magics.zig");
+const Piece = @import("piece.zig").Piece;
 
 pub const rooks = generateAttackTable(4096, magics.rook_shifts, magics.rook_masks, magics.rook_magics, getRookOccupancies);
 pub const bishops = generateAttackTable(512, magics.bishop_shifts, magics.bishop_masks, magics.bishop_magics, getBishopOccupancies);
@@ -138,4 +139,25 @@ pub fn slidingAttack(sq: u6, direction: Direction, occ: u64) u64 {
             return result;
         }
     }
+}
+
+pub fn attacksOf(comptime p: Piece, sq: u7, white_black: u64) u64 {
+    return switch (p) {
+        .Rook => rooks[sq][getRookIndex(sq, white_black)],
+        .Bishop => bishops[sq][getBishopIndex(sq, white_black)],
+        .Knight => knights[sq],
+        .Queen => rooks[sq][getRookIndex(sq, white_black)] | bishops[sq][getBishopIndex(sq, white_black)],
+        .King => kings[sq],
+        .Pawn => unreachable,
+    };
+}
+
+fn getRookIndex(sq: u7, white_black: u64) u64 {
+    const occ = magics.rook_masks[sq] & white_black;
+    return (occ *% magics.rook_magics[sq]) >> magics.rook_shifts[sq];
+}
+
+fn getBishopIndex(sq: u7, white_black: u64) u64 {
+    const occ = magics.bishop_masks[sq] & white_black;
+    return (occ *% magics.bishop_magics[sq]) >> magics.bishop_shifts[sq];
 }

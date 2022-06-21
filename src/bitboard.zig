@@ -29,6 +29,20 @@ pub fn display(bb: u64) void {
     }
 }
 
+pub fn reset(bb: u64) u64 {
+    return asm ("blsr %%rdi, %%rax"
+        : [ret] "={rax}" (-> u64),
+        : [bb] "{rdi}" (bb),
+    );
+}
+
+pub fn bsf(bb: u64) u6 {
+    return @truncate(u6, asm ("tzcnt %%rdi, %%rax"
+        : [ret] "={rax}" (-> u8),
+        : [val] "{rdi}" (bb),
+    ));
+}
+
 pub inline fn fileRankIndex(file: u6, rank: u6) u6 {
     return file + 8 * (rank - 1);
 }
