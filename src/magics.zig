@@ -1,3 +1,19 @@
+const Color = @import("color.zig").Color;
+const CastleRights = @import("castle.zig").CastleRights;
+
+pub fn castleBlocksOf(color: Color, comptime castle: CastleRights) u64 {
+    const blockers = switch (castle) {
+        .kingside => 96,
+        .queenside => 14,
+        else => unreachable,
+    };
+
+    return switch (color) {
+        .white => blockers,
+        .black => @byteSwap(u64, blockers),
+    };
+}
+
 // Taken from koi
 
 // zig fmt: off

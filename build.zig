@@ -1,4 +1,6 @@
 const std = @import("std");
+const attacks = @import("src/attacks.zig");
+const magics = @import("src/magics.zig");
 
 pub fn build(b: *std.build.Builder) void {
     // Standard target options allows the person running `zig build` to choose
@@ -12,6 +14,11 @@ pub fn build(b: *std.build.Builder) void {
     const mode = b.standardReleaseOptions();
 
     const exe = b.addExecutable("chess", "src/main.zig");
+    // TODO: get rid of this after stage2 and use comptime consts.
+    const exe_options = b.addOptions();
+    exe.addOptions("attack_tables", exe_options);
+    exe_options.addOption([64][4096]u64, "rooks", attacks.generateRookAttacks());
+    exe_options.addOption([64][512]u64, "bishops", attacks.generateBishopAttacks());
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();

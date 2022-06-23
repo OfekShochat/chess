@@ -1,4 +1,5 @@
 const std = @import("std");
+const Color = @import("color.zig").Color;
 
 pub const Square = enum(u6) {
     // zig fmt: off
@@ -26,3 +27,31 @@ pub const Square = enum(u6) {
         try writer.print("{s}", .{name});
     }
 };
+
+pub fn below(sq: u6, turn: Color) Square {
+    return switch (turn) {
+        .white => @intToEnum(Square, sq - 8),
+        .black => @intToEnum(Square, sq + 8),
+    };
+}
+
+pub fn rightBelow(sq: u6, turn: Color) Square {
+    return switch (turn) {
+        .white => @intToEnum(Square, sq - 7),
+        .black => @intToEnum(Square, sq + 7),
+    };
+}
+
+pub fn leftBelow(sq: u6, turn: Color) Square {
+    return switch (turn) {
+        .white => @intToEnum(Square, sq - 9),
+        .black => @intToEnum(Square, sq + 9),
+    };
+}
+
+pub fn doubleBelow(sq: u6, turn: Color) Square {
+    return switch (turn) {
+        .white => @intToEnum(Square, sq - 16),
+        .black => @intToEnum(Square, sq + 16),
+    };
+}

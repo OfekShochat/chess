@@ -1,10 +1,13 @@
 const std = @import("std");
 const attacks = @import("attacks.zig");
+const magics = @import("magics.zig");
 const bb = @import("bitboard.zig");
 const Board = @import("board.zig").Board;
 const Piece = @import("piece.zig").Piece;
 const CastleRights = @import("castle.zig").CastleRights;
-const Square = @import("square.zig").Square;
+const square = @import("square.zig");
+const Square = square.Square;
+const Rank = @import("rank.zig").Rank;
 
 pub const Move = struct {
     from: Square = Square.A1,
@@ -16,7 +19,7 @@ pub const Move = struct {
     castle: ?CastleRights = null,
     promotion: ?Piece = null,
 
-    fn capture(from: Square, to: Square, mover: Piece, target: Piece) Move {
+    fn capture(from: Square, to: Square, mover: Piece, target: ?Piece) Move {
         return .{
             .from = from,
             .to = to,
@@ -27,7 +30,7 @@ pub const Move = struct {
 
     fn castle_move(right: CastleRights) Move {
         return .{
-            .mover = .King,
+            .mover = .king,
             .castle = right,
         };
     }
@@ -56,7 +59,7 @@ pub const MoveList = struct {
 
     pub fn init() MoveList {
         return .{
-            .moves = [1]Move{Move{}} ** 256,
+            .moves = [1]Move{Move{ .mover = .king }} ** 256,
             .index = 0,
         };
     }
@@ -78,24 +81,177 @@ pub const MoveList = struct {
     }
 };
 
+pub fn move_gen(board: Board, move_list: *MoveList) void {
+    attackMoves(board, .king, move_list);
+    attackMoves(board, .knight, move_list);
+    attackMoves(board, .bishop, move_list);
+    attackMoves(board, .queen, move_list);
+    pawnMoves(board, move_list);
+}
+
 pub fn attackMoves(board: Board, comptime mover: Piece, move_list: *MoveList) void {
-    var left = board.boardOf(mover) & board.getBoard(board.turn);
+    var left = board.boardOf(mover) & board.us();
     while (left != 0) : (left = bb.reset(left)) {
         const sq = bb.bsf(left);
 
-        var as = attacks.attacksOf(mover, sq, board.black | board.white) & ~board.getBoard(board.turn);
-        while (as != 0) : (attacks = bb.reset(as)) {
+        var as = attacks.attacksOf(mover, sq, board.black | board.white) & ~board.us();
+        while (as != 0) : (as = bb.reset(as)) {
             const to_sq = bb.bsf(as);
-            move_list.add(Move.capture(sq, to_sq, mover, board.pieceOn(to_sq)));
+            move_list.push(Move.capture(@intToEnum(Square, sq), @intToEnum(Square, to_sq), mover, board.pieceOn(to_sq)));
         }
     }
 
-    if (mover == .King) {
-        if (board.canCastle(.kingside)) {
-            move_list.add(Move.castle_move(.kingside));
+    if (mover == .king) {
+        const kingside = magics.castleBlocksOf(board.turn, .kingside);
+        const queenside = magics.castleBlocksOf(board.turn, .queenside);
+        if (board.canCastle(.kingside) and kingside & (board.white | board.black) > 0) {
+            move_list.push(Move.castle_move(.kingside));
         }
-        if (board.canCastle(.queenside)) {
-            move_list.add(Move.castle_move(.queenside));
+        if (board.canCastle(.queenside) and queenside & (board.white | board.black) > 0) {
+            move_list.push(Move.castle_move(.queenside));
         }
+    }
+}
+
+pub fn pawnMoves(board: Board, move_list: *MoveList) void {
+    const us = board.pawns & board.us();
+    const targets = board.pawns & board.them();
+    const eighth = switch (board.turn) {
+        .white => bb.fromRank(Rank.eighth),
+        .black => bb.fromRank(Rank.first),
+    };
+    const second = switch (board.turn) {
+        .white => bb.fromRank(Rank.second),
+        .black => bb.fromRank(Rank.seventh),
+    };
+
+    var left_captures = bb.upLeft(us, board.turn) & targets & ~eighth;
+    var right_captures = bb.upRight(us, board.turn) & targets & ~eighth;
+    var forward = bb.up(us, board.turn) & ~(targets | eighth);
+    var double = bb.up(bb.up(us & second, board.turn), board.turn) & ~targets;
+    var promotions = (forward | left_captures | right_captures) & eighth;
+
+    while (left_captures != 0) : (left_captures = bb.reset(left_captures)) {
+        const t = bb.bsf(left_captures);
+        move_list.push(
+            Move.capture(square.rightBelow(t, board.turn), @intToEnum(Square, t), .pawn, board.pieceOn(t)),
+        );
+    }
+
+    while (right_captures != 0) : (right_captures = bb.reset(right_captures)) {
+        const t = bb.bsf(right_captures);
+        move_list.push(
+            Move.capture(square.leftBelow(t, board.turn), @intToEnum(Square, t), .pawn, board.pieceOn(t)),
+        );
+    }
+
+    if (promotions != 0) {
+        var forward_proms = bb.up(us, board.turn) & ~targets & eighth;
+        var left_proms = bb.upLeft(us, board.turn) & targets & eighth;
+        var right_proms = bb.upRight(us, board.turn) & targets & eighth;
+
+        while (forward_proms != 0) : (forward_proms = bb.reset(forward_proms)) {
+            const t = bb.bsf(forward_proms);
+            const from = square.below(t, board.turn);
+            const to = @intToEnum(Square, t);
+            move_list.push(Move{
+                .from = from,
+                .to = to,
+                .mover = .pawn,
+                .promotion = .queen,
+            });
+            move_list.push(Move{
+                .from = from,
+                .to = to,
+                .mover = .pawn,
+                .promotion = .rook,
+            });
+            move_list.push(Move{
+                .from = from,
+                .to = to,
+                .mover = .pawn,
+                .promotion = .bishop,
+            });
+            move_list.push(Move{
+                .from = from,
+                .to = to,
+                .mover = .pawn,
+                .promotion = .knight,
+            });
+        }
+
+        while (left_proms != 0) : (left_proms = bb.reset(left_proms)) {
+            const t = bb.bsf(left_proms);
+            const from = square.rightBelow(t, board.turn);
+            const to = @intToEnum(Square, t);
+            move_list.push(Move{
+                .from = from,
+                .to = to,
+                .mover = .pawn,
+                .promotion = .queen,
+            });
+            move_list.push(Move{
+                .from = from,
+                .to = to,
+                .mover = .pawn,
+                .promotion = .rook,
+            });
+            move_list.push(Move{
+                .from = from,
+                .to = to,
+                .mover = .pawn,
+                .promotion = .bishop,
+            });
+            move_list.push(Move{
+                .from = from,
+                .to = to,
+                .mover = .pawn,
+                .promotion = .knight,
+            });
+        }
+
+        while (right_proms != 0) : (right_proms = bb.reset(right_proms)) {
+            const t = bb.bsf(right_proms);
+            const from = square.leftBelow(t, board.turn);
+            const to = @intToEnum(Square, t);
+            move_list.push(Move{
+                .from = from,
+                .to = to,
+                .mover = .pawn,
+                .promotion = .queen,
+            });
+            move_list.push(Move{
+                .from = from,
+                .to = to,
+                .mover = .pawn,
+                .promotion = .rook,
+            });
+            move_list.push(Move{
+                .from = from,
+                .to = to,
+                .mover = .pawn,
+                .promotion = .bishop,
+            });
+            move_list.push(Move{
+                .from = from,
+                .to = to,
+                .mover = .pawn,
+                .promotion = .knight,
+            });
+        }
+    }
+
+    while (forward != 0) : (forward = bb.reset(forward)) {
+        const t = bb.bsf(forward);
+        move_list.push(
+            Move.capture(square.below(t, board.turn), @intToEnum(Square, t), .pawn, null),
+        );
+    }
+
+    while (double != 0) : (double = bb.reset(double)) {
+        const t = bb.bsf(double);
+        move_list.push(
+            Move.capture(square.doubleBelow(t, board.turn), @intToEnum(Square, t), .pawn, null),
+        );
     }
 }

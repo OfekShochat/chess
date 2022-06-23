@@ -1,9 +1,11 @@
 const bb = @import("bitboard.zig");
 const magics = @import("magics.zig");
 const Piece = @import("piece.zig").Piece;
+const tables = @import("attack_tables");
 
-pub const rooks = generateAttackTable(4096, magics.rook_shifts, magics.rook_masks, magics.rook_magics, getRookOccupancies);
-pub const bishops = generateAttackTable(512, magics.bishop_shifts, magics.bishop_masks, magics.bishop_magics, getBishopOccupancies);
+pub const rooks = tables.rooks;
+pub const bishops = tables.bishops;
+
 // zig fmt: off
 pub const kings = [64]u64{
     0x0000000000000302, 0x0000000000000705, 0x0000000000000e0a, 0x0000000000001c14,
@@ -45,21 +47,28 @@ pub const knights = [64]u64{
 // zig fmt: on
 
 pub fn getBishopOccupancies(sq: u6, occ: u64) u64 {
-    return slidingAttack(sq, Direction.SouthEast, occ) |
-        slidingAttack(sq, Direction.NorthEast, occ) |
-        slidingAttack(sq, Direction.NorthWest, occ) |
-        slidingAttack(sq, Direction.SouthWest, occ);
+    return slidingAttack(sq, .south_east, occ) |
+        slidingAttack(sq, .north_east, occ) |
+        slidingAttack(sq, .north_west, occ) |
+        slidingAttack(sq, .south_west, occ);
 }
 
 pub fn getRookOccupancies(sq: u6, occ: u64) u64 {
-    return slidingAttack(sq, Direction.North, occ) |
-        slidingAttack(sq, Direction.South, occ) |
-        slidingAttack(sq, Direction.West, occ) |
-        slidingAttack(sq, Direction.East, occ);
+    return slidingAttack(sq, .north, occ) |
+        slidingAttack(sq, .south, occ) |
+        slidingAttack(sq, .west, occ) |
+        slidingAttack(sq, .east, occ);
 }
 
 pub fn getQueenOccupancies(sq: u6, occ: u64) u64 {
     return getBishopOccupancies(sq, occ) | getRookOccupancies(sq, occ);
+}
+
+pub fn generateRookAttacks() [64][4096]u64 {
+    return generateAttackTable(4096, magics.rook_shifts, magics.rook_masks, magics.rook_magics, getRookOccupancies);
+}
+pub fn generateBishopAttacks() [64][512]u64 {
+    return generateAttackTable(512, magics.bishop_shifts, magics.bishop_masks, magics.bishop_magics, getBishopOccupancies);
 }
 
 fn generateAttackTable(comptime n: u16, shifts: [64]u6, masks: [64]u64, piece_magics: [64]u64, attack_gen: fn (u6, u64) u64) [64][n]u64 {
@@ -76,7 +85,7 @@ fn generateAttackTable(comptime n: u16, shifts: [64]u6, masks: [64]u64, piece_ma
         while (entry < entries) : (entry += 1) {
             const occ = populateMask(masks[sq], entry);
             const index = (occ *% piece_magics[sq]) >> shift;
-            attack_table[sq][index] = attack_gen(sq, occ);
+            attack_table[sq][index] = attack_gen(@intCast(u6, sq), occ);
         }
     }
     return attack_table;
@@ -91,7 +100,7 @@ fn populateMask(mask: u64, index: u64) u64 {
         const bit = bb.bsf(curr_mask);
 
         if (bb.isSet(index, @intCast(u6, i))) {
-            res = bb.setBit(res, @intCast(u6, bit));
+            res = bb.setAt(res, @intCast(u6, bit));
         }
 
         curr_mask &= (curr_mask - 1);
@@ -143,12 +152,12 @@ pub fn slidingAttack(sq: u6, direction: Direction, occ: u64) u64 {
 
 pub fn attacksOf(comptime p: Piece, sq: u7, white_black: u64) u64 {
     return switch (p) {
-        .Rook => rooks[sq][getRookIndex(sq, white_black)],
-        .Bishop => bishops[sq][getBishopIndex(sq, white_black)],
-        .Knight => knights[sq],
-        .Queen => rooks[sq][getRookIndex(sq, white_black)] | bishops[sq][getBishopIndex(sq, white_black)],
-        .King => kings[sq],
-        .Pawn => unreachable,
+        .rook => rooks[sq][getRookIndex(sq, white_black)],
+        .bishop => bishops[sq][getBishopIndex(sq, white_black)],
+        .knight => knights[sq],
+        .queen => rooks[sq][getRookIndex(sq, white_black)] | bishops[sq][getBishopIndex(sq, white_black)],
+        .king => kings[sq],
+        .pawn => unreachable,
     };
 }
 
