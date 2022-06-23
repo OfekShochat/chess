@@ -1,10 +1,10 @@
 const bb = @import("bitboard.zig");
 const magics = @import("magics.zig");
 const Piece = @import("piece.zig").Piece;
-const tables = @import("attack_tables");
+// const tables = @import("attack_tables");
 
-pub const rooks = tables.rooks;
-pub const bishops = tables.bishops;
+pub const rooks = generateRookAttacks();
+pub const bishops = generateBishopAttacks();
 
 // zig fmt: off
 pub const kings = [64]u64{
@@ -65,9 +65,11 @@ pub fn getQueenOccupancies(sq: u6, occ: u64) u64 {
 }
 
 pub fn generateRookAttacks() [64][4096]u64 {
+    @setEvalBranchQuota(10000000);
     return generateAttackTable(4096, magics.rook_shifts, magics.rook_masks, magics.rook_magics, getRookOccupancies);
 }
 pub fn generateBishopAttacks() [64][512]u64 {
+    @setEvalBranchQuota(10000000);
     return generateAttackTable(512, magics.bishop_shifts, magics.bishop_masks, magics.bishop_magics, getBishopOccupancies);
 }
 

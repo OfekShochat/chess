@@ -15,10 +15,10 @@ pub fn build(b: *std.build.Builder) void {
 
     const exe = b.addExecutable("chess", "src/main.zig");
     // TODO: get rid of this after stage2 and use comptime consts.
-    const exe_options = b.addOptions();
-    exe.addOptions("attack_tables", exe_options);
-    exe_options.addOption([64][4096]u64, "rooks", attacks.generateRookAttacks());
-    exe_options.addOption([64][512]u64, "bishops", attacks.generateBishopAttacks());
+    // const exe_options = b.addOptions();
+    // exe_options.addOption([64][4096]u64, "rooks", attacks.generateRookAttacks());
+    // exe_options.addOption([64][512]u64, "bishops", attacks.generateBishopAttacks());
+    // exe.addOptions("attack_tables", exe_options);
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();
