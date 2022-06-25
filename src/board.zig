@@ -18,7 +18,7 @@ pub const Board = struct {
     rooks: u64,
     queens: u64,
     kings: u64,
-    attacks: u64,
+    attacks: [2]u64,
     piece_map: [64]?Piece,
     white_castling: CastleRights,
     black_castling: CastleRights,
@@ -34,7 +34,7 @@ pub const Board = struct {
             .rooks = 0,
             .queens = 0,
             .kings = 0,
-            .attacks = 0,
+            .attacks = .{ 0, 0 },
             .piece_map = [1]?Piece{null} ** 64,
             .white_castling = .none,
             .black_castling = .none,
@@ -119,16 +119,15 @@ pub const Board = struct {
             }
         }
 
-        if (self.attacks & board.kings & board.them() > 0) { // FIXME: Im checking if we ourselves are checking us.
+        if (board.movedIntoCheck()) { // FIXME: Im checking if we ourselves are checking us.
             std.log.info("att {}", .{move});
-            bb.display(self.attacks & board.kings & board.them());
+            bb.display(self.attacks[@enumToInt(self.turn) ^ 1] & board.kings & board.them());
             std.log.info("kings", .{});
             bb.display(board.us());
             return error.NotLegal;
         } else {
             return board;
         }
-        return board;
     }
 
     fn set(self: *Board, piece: Piece, color: Color, sq: u6) void {
@@ -161,6 +160,14 @@ pub const Board = struct {
             .white => self.white = bb.removeAt(self.white, sq),
             .black => self.black = bb.removeAt(self.black, sq),
         }
+    }
+
+    pub fn inCheck(self: Board) bool {
+        return self.attacks[@enumToInt(self.turn) ^ 1] & self.kings & self.us() > 0;
+    }
+
+    pub fn movedIntoCheck(self: Board) bool {
+        return self.attacks[@enumToInt(self.turn)] & self.kings & self.them() > 0;
     }
 
     pub fn pieceOn(self: Board, sq: u6) ?Piece {
