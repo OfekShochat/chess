@@ -12,4 +12,11 @@ pub const Color = enum {
             else => return error.InvalidColor,
         }
     }
+
+    pub fn opposite(self: Color) Color {
+        return switch (self) {
+            .white => .black,
+            .black => .white,
+        };
+    }
 };

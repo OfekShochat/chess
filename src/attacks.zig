@@ -3,8 +3,14 @@ const magics = @import("magics.zig");
 const Piece = @import("piece.zig").Piece;
 // const tables = @import("attack_tables");
 
-pub const rooks = generateRookAttacks();
-pub const bishops = generateBishopAttacks();
+// TODO: somehow make this work on comptime (comptime bug probably).
+pub var rooks: [64][4096]u64 = undefined; //generateRookAttacks();
+pub var bishops: [64][512]u64 = undefined; //generateBishopAttacks();
+
+pub fn initializeAttacks() void {
+    rooks = generateRookAttacks();
+    bishops = generateBishopAttacks();
+}
 
 // zig fmt: off
 pub const kings = [64]u64{
@@ -65,11 +71,11 @@ pub fn getQueenOccupancies(sq: u6, occ: u64) u64 {
 }
 
 pub fn generateRookAttacks() [64][4096]u64 {
-    @setEvalBranchQuota(10000000);
+    @setEvalBranchQuota(100000);
     return generateAttackTable(4096, magics.rook_shifts, magics.rook_masks, magics.rook_magics, getRookOccupancies);
 }
 pub fn generateBishopAttacks() [64][512]u64 {
-    @setEvalBranchQuota(10000000);
+    @setEvalBranchQuota(100000);
     return generateAttackTable(512, magics.bishop_shifts, magics.bishop_masks, magics.bishop_magics, getBishopOccupancies);
 }
 
@@ -94,7 +100,7 @@ fn generateAttackTable(comptime n: u16, shifts: [64]u6, masks: [64]u64, piece_ma
 }
 
 fn populateMask(mask: u64, index: u64) u64 {
-    var res = @intCast(u64, 0);
+    var res: u64 = 0;
     var curr_mask = mask;
 
     var i = @intCast(u7, 0);

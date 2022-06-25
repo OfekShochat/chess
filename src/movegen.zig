@@ -14,8 +14,8 @@ pub const Move = struct {
     to: Square = Square.A1,
     mover: Piece,
     capture: ?Piece = null,
-    double_move: bool = false,
-    en_passant: bool = false,
+    is_double: bool = false,
+    is_enpass: bool = false,
     castle: ?CastleRights = null,
     promotion: ?Piece = null,
 
@@ -95,6 +95,7 @@ pub fn attackMoves(board: Board, comptime mover: Piece, move_list: *MoveList) vo
         const sq = bb.bsf(left);
 
         var as = attacks.attacksOf(mover, sq, board.black | board.white) & ~board.us();
+        board.attacks |= as;
         while (as != 0) : (as = bb.reset(as)) {
             const to_sq = bb.bsf(as);
             move_list.push(Move.capture(@intToEnum(Square, sq), @intToEnum(Square, to_sq), mover, board.pieceOn(to_sq)));
@@ -127,6 +128,8 @@ pub fn pawnMoves(board: Board, move_list: *MoveList) void {
 
     var left_captures = bb.upLeft(us, board.turn) & targets & ~eighth;
     var right_captures = bb.upRight(us, board.turn) & targets & ~eighth;
+    board.attacks |= left_captures | right_captures;
+
     var forward = bb.up(us, board.turn) & ~(targets | eighth);
     var double = bb.up(bb.up(us & second, board.turn), board.turn) & ~targets;
     var promotions = (forward | left_captures | right_captures) & eighth;
@@ -251,7 +254,12 @@ pub fn pawnMoves(board: Board, move_list: *MoveList) void {
     while (double != 0) : (double = bb.reset(double)) {
         const t = bb.bsf(double);
         move_list.push(
-            Move.capture(square.doubleBelow(t, board.turn), @intToEnum(Square, t), .pawn, null),
+            Move{
+                .from = square.doubleBelow(t, board.turn),
+                .to = @intToEnum(Square, t),
+                .mover = .pawn,
+                .is_double = true,
+            },
         );
     }
 }

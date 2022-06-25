@@ -6,6 +6,7 @@ const bb = @import("bitboard.zig");
 const Color = @import("color.zig").Color;
 const CastleRights = @import("castle.zig").CastleRights;
 const Piece = @import("piece.zig").Piece;
+const Move = @import("movegen.zig").Move;
 
 pub const Board = struct {
     turn: Color,
@@ -17,6 +18,7 @@ pub const Board = struct {
     rooks: u64,
     queens: u64,
     kings: u64,
+    attacks: u64,
     piece_map: [64]?Piece,
     white_castling: CastleRights,
     black_castling: CastleRights,
@@ -32,6 +34,7 @@ pub const Board = struct {
             .rooks = 0,
             .queens = 0,
             .kings = 0,
+            .attacks = 0,
             .piece_map = [1]?Piece{null} ** 64,
             .white_castling = .none,
             .black_castling = .none,
@@ -76,6 +79,34 @@ pub const Board = struct {
         return board;
     }
 
+    pub fn makemove(self: Board, move: Move) !Board {
+        var board = self;
+        board.turn = self.turn.opposite();
+
+        const from = @enumToInt(move.from);
+        const to = @enumToInt(move.to);
+
+        board.set(move.mover, self.turn, to);
+        board.unset(self.pieceOn(to).?, board.turn, from);
+        if (move.capture) |c| {
+            board.unset(c, board.turn, to);
+        }
+
+        if (move.mover == .pawn) {
+            board.unset(
+                .pawn,
+                board.turn,
+                to ^ 8,
+            );
+        }
+
+        if (self.attacks & (self.kings & self.us()) > 0) {
+            return error.NotLegal;
+        } else {
+            return board;
+        }
+    }
+
     fn set(self: *Board, piece: Piece, color: Color, sq: u6) void {
         self.piece_map[sq] = piece;
         switch (piece) {
@@ -95,12 +126,12 @@ pub const Board = struct {
     fn unset(self: *Board, piece: Piece, color: Color, sq: u6) void {
         self.piece_map[sq] = null;
         switch (piece) {
-            .pawn => bb.removeAt(self.pawns, sq),
-            .rook => bb.removeAt(self.rooks, sq),
-            .knight => bb.removeAt(self.knights, sq),
-            .bishop => bb.removeAt(self.bishops, sq),
-            .queen => bb.removeAt(self.queens, sq),
-            .king => bb.removeAt(self.kings, sq),
+            .pawn => self.pawns = bb.removeAt(self.pawns, sq),
+            .rook => self.rooks = bb.removeAt(self.rooks, sq),
+            .knight => self.knights = bb.removeAt(self.knights, sq),
+            .bishop => self.bishops = bb.removeAt(self.bishops, sq),
+            .queen => self.queens = bb.removeAt(self.queens, sq),
+            .king => self.kings = bb.removeAt(self.kings, sq),
         }
         switch (color) {
             .white => self.white = bb.removeAt(self.white, sq),

@@ -12,17 +12,19 @@ pub fn main() anyerror!void {
     std.log.info("All your codebase are belong to us.", .{});
     bb.display(r);
     const b = try Board.fromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
-    var move_list = movegen.MoveList.init();
-    movegen.move_gen(b, &move_list);
-    std.log.info("{}", .{b});
-    std.log.info("{}", .{move_list});
+    // var move_list = movegen.MoveList.init();
+    // movegen.move_gen(b, &move_list);
+    // std.log.info("{}", .{b});
+    // std.log.info("{}", .{move_list});
+    attacks.initializeAttacks();
+    std.log.info("{}", .{perft(b, 2)});
 }
 
 fn perft(board: Board, d: usize) usize {
     if (d == 0) return 1;
-    if (board.isGameOver()) return 0;
+    // if (board.isGameOver()) return 0;
     var move_list = movegen.MoveList.init();
-    movegen.gen_moves(board, move_list);
+    movegen.move_gen(board, &move_list);
     // if (d == 1) {
     //     return move_list.index;
     // }
@@ -30,7 +32,7 @@ fn perft(board: Board, d: usize) usize {
     var nodes: usize = 0;
     var i: u8 = 0;
     while (i < move_list.index) : (i += 1) {
-        const b = board.makeMove(move_list.moves[i]);
+        const b = board.makemove(move_list.moves[i]) catch continue;
         nodes += perft(b, d - 1);
     }
 
