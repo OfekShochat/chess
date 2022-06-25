@@ -43,9 +43,25 @@ pub const Board = struct {
 
     pub fn fromFen(fen: []const u8) !Board {
         var board = Board.empty();
+        var parts = std.mem.tokenize(u8, fen, " ");
+
+        try board.setupBoard(parts.next() orelse return error.IncompleteFen);
+
+        if (parts.next()) |c| {
+            board.turn = switch (c[0]) {
+                'w' => .white,
+                'b' => .black,
+                else => return error.InvalidColor,
+            };
+        }
+
+        return board;
+    }
+
+    fn setupBoard(board: *Board, pieces: []const u8) !void {
         var rank: u6 = 8;
         var file: u6 = 0;
-        var ranks = std.mem.tokenize(u8, fen, "/");
+        var ranks = std.mem.tokenize(u8, pieces, "/");
 
         while (ranks.next()) |r| {
             for (r) |p| {
@@ -58,6 +74,7 @@ pub const Board = struct {
                             'n' => .knight,
                             'b' => .bishop,
                             'r' => .rook,
+                            'q' => .queen,
                             else => return error.InvalidPiece,
                         };
                         const color = if (isUpper(p)) Color.white else .black;
@@ -76,35 +93,42 @@ pub const Board = struct {
             rank -= 1;
             file = 0;
         }
-        return board;
     }
 
     pub fn makemove(self: Board, move: Move) !Board {
         var board = self;
         board.turn = self.turn.opposite();
+        board.attacks = 0;
 
         const from = @enumToInt(move.from);
         const to = @enumToInt(move.to);
 
         board.set(move.mover, self.turn, to);
-        board.unset(self.pieceOn(to).?, board.turn, from);
+        board.unset(move.mover, self.turn, from);
         if (move.capture) |c| {
             board.unset(c, board.turn, to);
         }
 
         if (move.mover == .pawn) {
-            board.unset(
-                .pawn,
-                board.turn,
-                to ^ 8,
-            );
+            if (move.is_enpass) {
+                board.unset(
+                    .pawn,
+                    board.turn,
+                    to ^ 8,
+                );
+            }
         }
 
-        if (self.attacks & (self.kings & self.us()) > 0) {
+        if (self.attacks & board.kings & board.them() > 0) { // FIXME: Im checking if we ourselves are checking us.
+            std.log.info("att {}", .{move});
+            bb.display(self.attacks & board.kings & board.them());
+            std.log.info("kings", .{});
+            bb.display(board.us());
             return error.NotLegal;
         } else {
             return board;
         }
+        return board;
     }
 
     fn set(self: *Board, piece: Piece, color: Color, sq: u6) void {

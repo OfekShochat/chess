@@ -81,15 +81,16 @@ pub const MoveList = struct {
     }
 };
 
-pub fn move_gen(board: Board, move_list: *MoveList) void {
+pub fn move_gen(board: *Board, move_list: *MoveList) void {
     attackMoves(board, .king, move_list);
     attackMoves(board, .knight, move_list);
     attackMoves(board, .bishop, move_list);
     attackMoves(board, .queen, move_list);
+    attackMoves(board, .rook, move_list);
     pawnMoves(board, move_list);
 }
 
-pub fn attackMoves(board: Board, comptime mover: Piece, move_list: *MoveList) void {
+pub fn attackMoves(board: *Board, comptime mover: Piece, move_list: *MoveList) void {
     var left = board.boardOf(mover) & board.us();
     while (left != 0) : (left = bb.reset(left)) {
         const sq = bb.bsf(left);
@@ -114,7 +115,7 @@ pub fn attackMoves(board: Board, comptime mover: Piece, move_list: *MoveList) vo
     }
 }
 
-pub fn pawnMoves(board: Board, move_list: *MoveList) void {
+pub fn pawnMoves(board: *Board, move_list: *MoveList) void {
     const us = board.pawns & board.us();
     const targets = board.pawns & board.them();
     const eighth = switch (board.turn) {
@@ -130,8 +131,8 @@ pub fn pawnMoves(board: Board, move_list: *MoveList) void {
     var right_captures = bb.upRight(us, board.turn) & targets & ~eighth;
     board.attacks |= left_captures | right_captures;
 
-    var forward = bb.up(us, board.turn) & ~(targets | eighth);
-    var double = bb.up(bb.up(us & second, board.turn), board.turn) & ~targets;
+    var forward = bb.up(us, board.turn) & ~(board.white | board.black | eighth);
+    var double = bb.up(bb.up(us & second, board.turn) & ~(board.white | board.black), board.turn) & ~(board.white | board.black);
     var promotions = (forward | left_captures | right_captures) & eighth;
 
     while (left_captures != 0) : (left_captures = bb.reset(left_captures)) {
