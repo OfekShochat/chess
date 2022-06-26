@@ -188,7 +188,7 @@ pub fn allAttacks(board: Board) u64 {
         attacks |= attacksOf(.king, r, board.white | board.black);
     }
     our = board.pawns & board.us();
-    our |= bb.upLeft(our, board.turn) | bb.upRight(our, board.turn);
+    attacks |= bb.upLeft(our, board.turn) | bb.upRight(our, board.turn);
     return attacks;
 }
 

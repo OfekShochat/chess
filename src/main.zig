@@ -11,12 +11,11 @@ pub fn main() anyerror!void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     var b = try Board.fromFen(startpos, gpa.allocator());
-    bb.display(b.black);
     defer b.deinit();
     var move_list = movegen.MoveList.init();
     movegen.move_gen(&b, &move_list);
     std.debug.print("{}\n", .{move_list});
-    std.debug.print("{}\n", .{rootPerft(&b, 5)});
+    std.debug.print("{}\n", .{rootPerft(&b, 6)});
 }
 
 fn perft(board: *Board, d: usize) usize {
