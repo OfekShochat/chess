@@ -95,8 +95,8 @@ pub fn attackMoves(board: *Board, comptime mover: Piece, move_list: *MoveList) v
     while (left != 0) : (left = bb.reset(left)) {
         const sq = bb.bsf(left);
 
-        var as = attacks.attacksOf(mover, sq, board.black | board.white) & ~board.us();
-        board.attacks |= as;
+        var as = attacks.attacksOf(mover, sq, board.white | board.black) & ~board.us();
+        if (mover == .queen) {}
         while (as != 0) : (as = bb.reset(as)) {
             const to_sq = bb.bsf(as);
             move_list.push(Move.capture(@intToEnum(Square, sq), @intToEnum(Square, to_sq), mover, board.pieceOn(to_sq)));
@@ -117,7 +117,8 @@ pub fn attackMoves(board: *Board, comptime mover: Piece, move_list: *MoveList) v
 
 pub fn pawnMoves(board: *Board, move_list: *MoveList) void {
     const us = board.pawns & board.us();
-    const targets = board.pawns & board.them();
+    var en_pass = bb.fromSquare(board.en_pass);
+    const targets = en_pass | board.them();
     const eighth = switch (board.turn) {
         .white => bb.fromRank(Rank.eighth),
         .black => bb.fromRank(Rank.first),
@@ -129,7 +130,6 @@ pub fn pawnMoves(board: *Board, move_list: *MoveList) void {
 
     var left_captures = bb.upLeft(us, board.turn) & targets & ~eighth;
     var right_captures = bb.upRight(us, board.turn) & targets & ~eighth;
-    board.attacks |= left_captures | right_captures;
 
     var forward = bb.up(us, board.turn) & ~(board.white | board.black | eighth);
     var double = bb.up(bb.up(us & second, board.turn) & ~(board.white | board.black), board.turn) & ~(board.white | board.black);

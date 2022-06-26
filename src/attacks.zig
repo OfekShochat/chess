@@ -1,6 +1,7 @@
 const bb = @import("bitboard.zig");
 const magics = @import("magics.zig");
 const Piece = @import("piece.zig").Piece;
+const Board = @import("board.zig").Board;
 // const tables = @import("attack_tables");
 
 // TODO: somehow make this work on comptime (comptime bug probably).
@@ -10,6 +11,7 @@ pub var bishops: [64][512]u64 = undefined; //generateBishopAttacks();
 pub fn initializeAttacks() void {
     rooks = generateRookAttacks();
     bishops = generateBishopAttacks();
+    @import("std").log.info("{any}", .{bishops[1]});
 }
 
 // zig fmt: off
@@ -141,7 +143,7 @@ pub fn slidingAttack(sq: u6, direction: Direction, occ: u64) u64 {
             .east => bb.east(curr_sq),
             .west => bb.west(curr_sq),
             .north_east => bb.northEast(curr_sq),
-            .south_east => bb.southWest(curr_sq),
+            .south_east => bb.southEast(curr_sq),
             .north_west => bb.northWest(curr_sq),
             .south_west => bb.southWest(curr_sq),
         };
@@ -156,6 +158,42 @@ pub fn slidingAttack(sq: u6, direction: Direction, occ: u64) u64 {
             return result;
         }
     }
+}
+
+pub fn allAttacks(board: Board) u64 {
+    var attacks: u64 = 0;
+    var our = board.rooks & board.us();
+    while (our != 0) : (our = bb.reset(our)) {
+        const r = bb.bsf(our);
+        attacks |= attacksOf(.rook, r, board.white | board.black);
+    }
+    our = board.bishops & board.us();
+    while (our != 0) : (our = bb.reset(our)) {
+        const r = bb.bsf(our);
+        attacks |= attacksOf(.bishop, r, board.white | board.black);
+    }
+    our = board.knights & board.us();
+    while (our != 0) : (our = bb.reset(our)) {
+        const r = bb.bsf(our);
+        attacks |= attacksOf(.knight, r, board.white | board.black);
+    }
+    our = board.queens & board.us();
+    while (our != 0) : (our = bb.reset(our)) {
+        const r = bb.bsf(our);
+        attacks |= attacksOf(.queen, r, board.white | board.black);
+    }
+    our = board.kings & board.us();
+    while (our != 0) : (our = bb.reset(our)) {
+        const r = bb.bsf(our);
+        attacks |= attacksOf(.king, r, board.white | board.black);
+    }
+    our = board.pawns & board.us();
+    our |= bb.upLeft(our, board.turn) | bb.upRight(our, board.turn);
+    return attacks;
+}
+
+pub fn isAttacked(b: u64, board: Board) bool {
+    return allAttacks(board) & b > 0;
 }
 
 pub fn attacksOf(comptime p: Piece, sq: u7, white_black: u64) u64 {

@@ -1,12 +1,16 @@
 const std = @import("std");
 const toLower = std.ascii.toLower;
 const isUpper = std.ascii.isUpper;
+const Allocator = std.mem.Allocator;
+const ArrayList = std.ArrayList;
 
 const bb = @import("bitboard.zig");
+const zobrist = @import("zobrist.zig");
 const Color = @import("color.zig").Color;
 const CastleRights = @import("castle.zig").CastleRights;
 const Piece = @import("piece.zig").Piece;
 const Move = @import("movegen.zig").Move;
+const isAttacked = @import("attacks.zig").isAttacked;
 
 pub const Board = struct {
     turn: Color,
@@ -18,13 +22,16 @@ pub const Board = struct {
     rooks: u64,
     queens: u64,
     kings: u64,
-    attacks: [2]u64,
     piece_map: [64]?Piece,
+    en_pass: u6,
     white_castling: CastleRights,
     black_castling: CastleRights,
+    hash_stack: ArrayList(u64),
+    hash: u64,
+    half_moves: u8,
 
-    fn empty() Board {
-        return .{
+    fn empty(allocator: Allocator) !Board {
+        return Board{
             .turn = .white,
             .white = 0,
             .black = 0,
@@ -34,15 +41,18 @@ pub const Board = struct {
             .rooks = 0,
             .queens = 0,
             .kings = 0,
-            .attacks = .{ 0, 0 },
             .piece_map = [1]?Piece{null} ** 64,
+            .en_pass = 0,
+            .hash = 0,
             .white_castling = .none,
             .black_castling = .none,
+            .hash_stack = try ArrayList(u64).initCapacity(allocator, 256),
+            .half_moves = 0,
         };
     }
 
-    pub fn fromFen(fen: []const u8) !Board {
-        var board = Board.empty();
+    pub fn fromFen(fen: []const u8, allocator: Allocator) !Board {
+        var board = try Board.empty(allocator);
         var parts = std.mem.tokenize(u8, fen, " ");
 
         try board.setupBoard(parts.next() orelse return error.IncompleteFen);
@@ -56,6 +66,10 @@ pub const Board = struct {
         }
 
         return board;
+    }
+
+    pub fn deinit(self: *Board) void {
+        self.hash_stack.deinit();
     }
 
     fn setupBoard(board: *Board, pieces: []const u8) !void {
@@ -95,19 +109,26 @@ pub const Board = struct {
         }
     }
 
+    pub fn switchSides(self: *Board) void {
+        self.turn = self.turn.opposite();
+    }
+
     pub fn makemove(self: Board, move: Move) !Board {
         var board = self;
-        board.turn = self.turn.opposite();
-        board.attacks = 0;
+        board.switchSides();
+        board.half_moves += 1;
+        board.en_pass = 0;
 
         const from = @enumToInt(move.from);
         const to = @enumToInt(move.to);
 
-        board.set(move.mover, self.turn, to);
-        board.unset(move.mover, self.turn, from);
+        board.hash ^= zobrist.en_pass[self.en_pass];
+
         if (move.capture) |c| {
             board.unset(c, board.turn, to);
         }
+        board.set(move.mover, self.turn, to);
+        board.unset(move.mover, self.turn, from);
 
         if (move.mover == .pawn) {
             if (move.is_enpass) {
@@ -116,21 +137,39 @@ pub const Board = struct {
                     board.turn,
                     to ^ 8,
                 );
+            } else if (move.is_double) {
+                board.en_pass = to ^ 8;
+                board.hash ^= zobrist.en_pass[board.en_pass];
             }
         }
 
-        if (board.movedIntoCheck()) { // FIXME: Im checking if we ourselves are checking us.
-            std.log.info("att {}", .{move});
-            bb.display(self.attacks[@enumToInt(self.turn) ^ 1] & board.kings & board.them());
-            std.log.info("kings", .{});
-            bb.display(board.us());
+        if (isAttacked(board.kings & board.them(), board)) {
+            // std.log.info("kings", .{});
             return error.NotLegal;
         } else {
             return board;
         }
     }
 
+    pub fn isDraw(self: Board) bool {
+        if (self.half_moves >= 100) return true;
+        if (std.mem.len(self.hash_stack.items) > 1) {
+            var index: i16 = @intCast(i16, std.mem.len(self.hash_stack.items));
+            var limit = index - self.half_moves - 1;
+            var count: u8 = 0;
+            while (index >= limit and index >= 0) {
+                if (self.hash_stack.items[@intCast(usize, index)] == self.hash) {
+                    count += 1;
+                    return true;
+                }
+                index -= 2;
+            }
+        }
+        return false;
+    }
+
     fn set(self: *Board, piece: Piece, color: Color, sq: u6) void {
+        self.hash ^= zobrist.pieces[@enumToInt(color)][@enumToInt(piece)][sq];
         self.piece_map[sq] = piece;
         switch (piece) {
             .pawn => self.pawns = bb.setAt(self.pawns, sq),
@@ -147,6 +186,7 @@ pub const Board = struct {
     }
 
     fn unset(self: *Board, piece: Piece, color: Color, sq: u6) void {
+        self.hash ^= zobrist.pieces[@enumToInt(color)][@enumToInt(piece)][sq];
         self.piece_map[sq] = null;
         switch (piece) {
             .pawn => self.pawns = bb.removeAt(self.pawns, sq),
@@ -160,14 +200,6 @@ pub const Board = struct {
             .white => self.white = bb.removeAt(self.white, sq),
             .black => self.black = bb.removeAt(self.black, sq),
         }
-    }
-
-    pub fn inCheck(self: Board) bool {
-        return self.attacks[@enumToInt(self.turn) ^ 1] & self.kings & self.us() > 0;
-    }
-
-    pub fn movedIntoCheck(self: Board) bool {
-        return self.attacks[@enumToInt(self.turn)] & self.kings & self.them() > 0;
     }
 
     pub fn pieceOn(self: Board, sq: u6) ?Piece {
