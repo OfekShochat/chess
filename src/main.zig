@@ -10,12 +10,12 @@ pub fn main() anyerror!void {
     attacks.initializeAttacks();
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
-    var b = try Board.fromFen("rnbqkbnr/pp1ppppp/8/2pP4/8/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2", gpa.allocator());
+    var b = try Board.fromFen(startpos, gpa.allocator());
     defer b.deinit();
     var move_list = movegen.MoveList.init();
     movegen.move_gen(&b, &move_list);
     std.debug.print("{}\n", .{move_list});
-    std.debug.print("{}\n", .{rootPerft(&b, 3)});
+    std.debug.print("{}\n", .{rootPerft(&b, 7)});
 }
 
 fn perft(board: *Board, d: usize) usize {

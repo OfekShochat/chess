@@ -171,6 +171,10 @@ pub const Board = struct {
             }
         }
 
+        // if (move.from == .D5 and move.to == .C6) {
+        //     std.debug.print("{}\n", .{board});
+        // }
+
         if (isAttacked(board.kings & board.them(), board)) {
             // std.log.info("kings", .{});
             return error.NotLegal;

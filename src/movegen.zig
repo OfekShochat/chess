@@ -138,14 +138,26 @@ pub fn pawnMoves(board: *Board, move_list: *MoveList) void {
     while (left_captures != 0) : (left_captures = bb.reset(left_captures)) {
         const t = bb.bsf(left_captures);
         move_list.push(
-            Move.capture(square.rightBelow(t, board.turn), @intToEnum(Square, t), .pawn, board.pieceOn(t)),
+            Move{
+                .from = square.rightBelow(t, board.turn),
+                .to = @intToEnum(Square, t),
+                .mover = .pawn,
+                .capture = board.pieceOn(t),
+                .is_enpass = t == board.en_pass,
+            },
         );
     }
 
     while (right_captures != 0) : (right_captures = bb.reset(right_captures)) {
         const t = bb.bsf(right_captures);
         move_list.push(
-            Move.capture(square.leftBelow(t, board.turn), @intToEnum(Square, t), .pawn, board.pieceOn(t)),
+            Move{
+                .from = square.leftBelow(t, board.turn),
+                .to = @intToEnum(Square, t),
+                .mover = .pawn,
+                .capture = board.pieceOn(t),
+                .is_enpass = t == board.en_pass,
+            },
         );
     }
 
