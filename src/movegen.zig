@@ -96,7 +96,6 @@ pub fn attackMoves(board: *Board, comptime mover: Piece, move_list: *MoveList) v
         const sq = bb.bsf(left);
 
         var as = attacks.attacksOf(mover, sq, board.white | board.black) & ~board.us();
-        if (mover == .queen) {}
         while (as != 0) : (as = bb.reset(as)) {
             const to_sq = bb.bsf(as);
             move_list.push(Move.capture(@intToEnum(Square, sq), @intToEnum(Square, to_sq), mover, board.pieceOn(to_sq)));

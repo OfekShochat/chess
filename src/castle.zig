@@ -1,4 +1,4 @@
-pub const CastleRights = enum {
+pub const CastleRights = enum(u2) {
     none,
     kingside,
     queenside,

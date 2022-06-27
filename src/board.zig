@@ -6,11 +6,14 @@ const ArrayList = std.ArrayList;
 
 const bb = @import("bitboard.zig");
 const zobrist = @import("zobrist.zig");
+const magics = @import("magics.zig");
+const attacks = @import("attacks.zig");
 const Color = @import("color.zig").Color;
 const CastleRights = @import("castle.zig").CastleRights;
 const Piece = @import("piece.zig").Piece;
 const Move = @import("movegen.zig").Move;
-const isAttacked = @import("attacks.zig").isAttacked;
+const isAttacked = attacks.isAttacked;
+const allAttacks = attacks.allAttacks;
 
 pub const Board = struct {
     turn: Color,
@@ -67,6 +70,9 @@ pub const Board = struct {
                 'b' => .black,
                 else => return error.InvalidColor,
             };
+            if (board.turn == .white) {
+                board.hash ^= zobrist.side;
+            }
         }
 
         try board.setupCastling(parts.next() orelse return error.IncompleteFen);
@@ -74,6 +80,7 @@ pub const Board = struct {
         if (parts.next()) |sq| {
             if (sq[0] != '-') {
                 board.en_pass = @intCast(u6, (sq[1] - '1') * 8 + sq[0] - 'a');
+                board.hash ^= zobrist.en_pass[board.en_pass];
             }
         } else {
             return error.IncompleteFen;
@@ -135,9 +142,11 @@ pub const Board = struct {
                 else => return error.InvalidCastleRights,
             }
         }
+        board.hash ^= zobrist.castles[@enumToInt(board.white_castling) | @intCast(u4, @enumToInt(board.black_castling)) << 2];
     }
 
     pub fn switchSides(self: *Board) void {
+        self.hash ^= zobrist.side;
         self.turn = self.turn.opposite();
     }
 
@@ -150,7 +159,16 @@ pub const Board = struct {
         const from = @enumToInt(move.from);
         const to = @enumToInt(move.to);
 
-        board.hash ^= zobrist.en_pass[self.en_pass];
+        board.hash ^= zobrist.en_pass[self.en_pass]; // reset en passant
+
+        if (move.castle) |c| {
+            const as = allAttacks(board);
+            if (as & magics.castleBlocksOf(self.turn, c) > 0 or as & self.kings & self.us() > 0) {
+                return error.NotLegal;
+            } else {
+                return board;
+            }
+        }
 
         if (move.capture) |c| {
             board.unset(c, board.turn, to);
@@ -171,12 +189,7 @@ pub const Board = struct {
             }
         }
 
-        // if (move.from == .D5 and move.to == .C6) {
-        //     std.debug.print("{}\n", .{board});
-        // }
-
         if (isAttacked(board.kings & board.them(), board)) {
-            // std.log.info("kings", .{});
             return error.NotLegal;
         } else {
             return board;
