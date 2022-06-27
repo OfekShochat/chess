@@ -127,12 +127,16 @@ pub fn pawnMoves(board: *Board, move_list: *MoveList) void {
         .black => bb.fromRank(Rank.seventh),
     };
 
-    var left_captures = bb.upLeft(us, board.turn) & targets & ~eighth;
-    var right_captures = bb.upRight(us, board.turn) & targets & ~eighth;
+    var left_captures = bb.upLeft(us, board.turn) & targets;
+    var right_captures = bb.upRight(us, board.turn) & targets;
 
-    var forward = bb.up(us, board.turn) & ~(board.white | board.black | eighth);
+    var forward = bb.up(us, board.turn) & ~(board.white | board.black);
     var double = bb.up(bb.up(us & second, board.turn) & ~(board.white | board.black), board.turn) & ~(board.white | board.black);
     var promotions = (forward | left_captures | right_captures) & eighth;
+
+    left_captures &= ~eighth;
+    right_captures &= ~eighth;
+    forward &= ~eighth;
 
     while (left_captures != 0) : (left_captures = bb.reset(left_captures)) {
         const t = bb.bsf(left_captures);
