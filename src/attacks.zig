@@ -11,7 +11,6 @@ pub var bishops: [64][512]u64 = undefined; //generateBishopAttacks();
 pub fn initializeAttacks() void {
     rooks = generateRookAttacks();
     bishops = generateBishopAttacks();
-    @import("std").log.info("{any}", .{bishops[1]});
 }
 
 // zig fmt: off

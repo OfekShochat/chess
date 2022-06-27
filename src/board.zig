@@ -51,6 +51,10 @@ pub const Board = struct {
         };
     }
 
+    pub fn deinit(self: *Board) void {
+        self.hash_stack.deinit();
+    }
+
     pub fn fromFen(fen: []const u8, allocator: Allocator) !Board {
         var board = try Board.empty(allocator);
         var parts = std.mem.tokenize(u8, fen, " ");
@@ -65,11 +69,21 @@ pub const Board = struct {
             };
         }
 
-        return board;
-    }
+        try board.setupCastling(parts.next() orelse return error.IncompleteFen);
 
-    pub fn deinit(self: *Board) void {
-        self.hash_stack.deinit();
+        if (parts.next()) |sq| {
+            if (sq[0] != '-') {
+                board.en_pass = @intCast(u6, (sq[1] - '1') * 8 + sq[0] - 'a');
+            }
+        } else {
+            return error.IncompleteFen;
+        }
+
+        _ = parts.next(); // fullmoves
+        const halfbuf = parts.next() orelse return error.IncompleteFen;
+        board.half_moves = try std.fmt.parseUnsigned(u8, halfbuf, 10);
+
+        return board;
     }
 
     fn setupBoard(board: *Board, pieces: []const u8) !void {
@@ -106,6 +120,20 @@ pub const Board = struct {
 
             rank -= 1;
             file = 0;
+        }
+    }
+
+    fn setupCastling(board: *Board, rights: []const u8) !void {
+        if (rights[0] == '-') return; // none
+
+        for (rights) |r| {
+            switch (r) {
+                'K' => board.white_castling.add(.kingside),
+                'k' => board.black_castling.add(.kingside),
+                'Q' => board.white_castling.add(.queenside),
+                'q' => board.black_castling.add(.queenside),
+                else => return error.InvalidCastleRights,
+            }
         }
     }
 

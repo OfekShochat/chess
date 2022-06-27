@@ -106,10 +106,10 @@ pub fn attackMoves(board: *Board, comptime mover: Piece, move_list: *MoveList) v
     if (mover == .king) {
         const kingside = magics.castleBlocksOf(board.turn, .kingside);
         const queenside = magics.castleBlocksOf(board.turn, .queenside);
-        if (board.canCastle(.kingside) and kingside & (board.white | board.black) > 0) {
+        if (board.canCastle(.kingside) and kingside & (board.white | board.black) == 0) {
             move_list.push(Move.castle_move(.kingside));
         }
-        if (board.canCastle(.queenside) and queenside & (board.white | board.black) > 0) {
+        if (board.canCastle(.queenside) and queenside & (board.white | board.black) == 0) {
             move_list.push(Move.castle_move(.queenside));
         }
     }
