@@ -162,8 +162,13 @@ pub const Board = struct {
         board.hash ^= zobrist.en_pass[self.en_pass]; // reset en passant
 
         if (move.castle) |c| {
+            switch (c) {
+                .kingside => {
+                    board.unset();
+                },
+            }
             const as = allAttacks(board);
-            if (as & magics.castleBlocksOf(self.turn, c) > 0 or as & self.kings & self.us() > 0) {
+            if (as & self.kings & self.us() > 0) {
                 return error.NotLegal;
             } else {
                 return board;

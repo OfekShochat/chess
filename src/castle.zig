@@ -10,4 +10,11 @@ pub const CastleRights = enum(u2) {
 
         self.* = @intToEnum(CastleRights, i | o);
     }
+
+    pub fn remove(self: *CastleRights, other: CastleRights) void {
+        const i = @enumToInt(self.*);
+        const o = @enumToInt(other);
+
+        self.* = @intToEnum(CastleRights, i & ~o);
+    }
 };
