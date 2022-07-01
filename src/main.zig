@@ -10,29 +10,32 @@ pub fn main() anyerror!void {
     attacks.initializeAttacks();
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
-    var b = try Board.fromFen("r1b1kbnr/pp2pppp/2n5/2ppP3/5B2/2NP4/qPPQ1PPP/R3KBNR w KQkq - 0 3", gpa.allocator());
+    var b = try Board.fromFen("3qkb1r/pBpnpppp/1p3n2/5b2/3p4/4P2N/PPPPKPPP/RNBQ3R b k - 1 4", gpa.allocator());
     defer b.deinit();
     var move_list = movegen.MoveList.init();
     movegen.move_gen(&b, &move_list);
     std.debug.print("{}\n", .{move_list});
-    std.debug.print("{}\n", .{rootPerft(&b, 1)});
+    std.debug.print("{}\n", .{rootPerft(&b, 6)});
 }
 
-fn perft(board: *Board, d: usize) usize {
+fn perft(board: *Board, d: usize, debug: bool) usize {
+    _ = debug;
     if (d == 0) return 1;
     // if (board.isDraw()) return 0;
     var move_list = movegen.MoveList.init();
     movegen.move_gen(board, &move_list);
-    // std.log.info("{}", .{move_list});
-    // if (d == 1) {
-    //     return move_list.index;
-    // }
+    if (debug) {
+        // std.debug.print("11 {}\n", .{move_list});
+    }
 
     var nodes: usize = 0;
     var i: u8 = 0;
     while (i < move_list.index) : (i += 1) {
         var b = board.makemove(move_list.moves[i]) catch continue;
-        nodes += perft(&b, d - 1);
+        nodes += perft(&b, d - 1, false);
+        if (debug) {
+            // std.debug.print("11 {}: {}\n", .{ move_list.moves[i], b });
+        }
     }
 
     return nodes;
@@ -51,7 +54,7 @@ fn rootPerft(board: *Board, d: usize) usize {
     var i: u8 = 0;
     while (i < move_list.index) : (i += 1) {
         var b = board.makemove(move_list.moves[i]) catch continue;
-        const r = perft(&b, d - 1);
+        const r = perft(&b, d - 1, move_list.moves[i].from == .F2 and move_list.moves[i].to == .G1 and move_list.moves[i].promotion.? == .rook);
         nodes += r;
         std.debug.print("{}: {}\n", .{ move_list.moves[i], r });
     }

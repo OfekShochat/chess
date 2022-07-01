@@ -1,5 +1,6 @@
 const std = @import("std");
 const Color = @import("color.zig").Color;
+const CastleRights = @import("castle.zig").CastleRights;
 
 pub const Square = enum(u6) {
     // zig fmt: off
@@ -27,6 +28,18 @@ pub const Square = enum(u6) {
         try writer.print("{s}", .{name});
     }
 };
+
+pub fn cornerOf(castle: CastleRights, color: Color) Square {
+    const sq: u6 = switch (castle) {
+        .kingside => 7,
+        .queenside => 0,
+        else => @panic("nonsense castle"),
+    };
+    return @intToEnum(Square, switch (color) {
+        .white => sq,
+        .black => sq ^ 56,
+    });
+}
 
 pub fn below(sq: u6, turn: Color) Square {
     return switch (turn) {

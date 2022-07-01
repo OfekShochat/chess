@@ -25,10 +25,10 @@ pub const en_pass = blk: {
 
 pub const castles = blk: {
     var rng_state: u64 = 1094795585;
-    var r = [1]u64{0} ** 8;
+    var r = [1]u64{0} ** 16;
 
     var i: u8 = 0;
-    while (i < 8) : (i += 1) {
+    while (i < 16) : (i += 1) {
         r[i] = rand64(rng_state);
     }
 

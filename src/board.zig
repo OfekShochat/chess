@@ -12,6 +12,7 @@ const Color = @import("color.zig").Color;
 const CastleRights = @import("castle.zig").CastleRights;
 const Piece = @import("piece.zig").Piece;
 const Move = @import("movegen.zig").Move;
+const cornerOf = @import("square.zig").cornerOf;
 const isAttacked = attacks.isAttacked;
 const allAttacks = attacks.allAttacks;
 
@@ -152,32 +153,22 @@ pub const Board = struct {
 
     pub fn makemove(self: Board, move: Move) !Board {
         var board = self;
-        board.switchSides();
         board.half_moves += 1;
         board.en_pass = 0;
+        board.switchSides();
 
         const from = @enumToInt(move.from);
         const to = @enumToInt(move.to);
 
         board.hash ^= zobrist.en_pass[self.en_pass]; // reset en passant
 
-        if (move.castle) |c| {
-            switch (c) {
-                .kingside => {
-                    board.unset();
-                },
-            }
-            const as = allAttacks(board);
-            if (as & self.kings & self.us() > 0) {
-                return error.NotLegal;
-            } else {
-                return board;
-            }
-        }
+        board.removeTheirCastle(CastleRights.fromIndex(self.turn, from));
+        board.removeOurCastle(CastleRights.fromIndex(board.turn, to));
 
         if (move.capture) |c| {
             board.unset(c, board.turn, to);
         }
+
         board.set(move.mover, self.turn, to);
         board.unset(move.mover, self.turn, from);
 
@@ -191,6 +182,21 @@ pub const Board = struct {
             } else if (move.is_double) {
                 board.en_pass = to ^ 8;
                 board.hash ^= zobrist.en_pass[board.en_pass];
+            } else if (move.promotion) |p| {
+                board.unset(.pawn, self.turn, to);
+                board.set(p, self.turn, to);
+            }
+        } else if (move.castle) |c| {
+            const as = allAttacks(board);
+            if (as & self.kings & self.us() > 0 or as & magics.castleBlocksOf(self.turn, c) > 0) {
+                return error.NotLegal;
+            }
+            const r = @enumToInt(cornerOf(c, self.turn));
+            board.unset(.rook, self.turn, r);
+            switch (c) {
+                .kingside => board.set(.rook, self.turn, r - 2),
+                .queenside => board.set(.rook, self.turn, r + 3),
+                else => @panic("nonsense castle"),
             }
         }
 
@@ -198,6 +204,20 @@ pub const Board = struct {
             return error.NotLegal;
         } else {
             return board;
+        }
+    }
+
+    fn removeTheirCastle(self: *Board, castle: CastleRights) void {
+        switch (self.turn) {
+            .white => self.black_castling.remove(castle),
+            .black => self.white_castling.remove(castle),
+        }
+    }
+
+    fn removeOurCastle(self: *Board, castle: CastleRights) void {
+        switch (self.turn) {
+            .white => self.white_castling.remove(castle),
+            .black => self.black_castling.remove(castle),
         }
     }
 

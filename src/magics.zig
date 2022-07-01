@@ -4,7 +4,7 @@ const CastleRights = @import("castle.zig").CastleRights;
 pub fn castleBlocksOf(color: Color, castle: CastleRights) u64 {
     const blockers: u64 = switch (castle) {
         .kingside => 96,
-        .queenside => 14,
+        .queenside => 12,
         else => @panic("nonsense castle"),
     };
 

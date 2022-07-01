@@ -28,10 +28,12 @@ pub const Move = struct {
         };
     }
 
-    fn castle_move(right: CastleRights) Move {
+    fn castle_move(right: CastleRights, from: Square, to: Square) Move {
         return .{
             .mover = .king,
             .castle = right,
+            .from = from,
+            .to = to,
         };
     }
 
@@ -104,12 +106,13 @@ pub fn attackMoves(board: *Board, comptime mover: Piece, move_list: *MoveList) v
 
     if (mover == .king) {
         const kingside = magics.castleBlocksOf(board.turn, .kingside);
-        const queenside = magics.castleBlocksOf(board.turn, .queenside);
+        const queenside = magics.castleBlocksOf(board.turn, .queenside) | bb.fromSquare(1);
+        const from = bb.bsf(board.kings & board.us());
         if (board.canCastle(.kingside) and kingside & (board.white | board.black) == 0) {
-            move_list.push(Move.castle_move(.kingside));
+            move_list.push(Move.castle_move(.kingside, @intToEnum(Square, from), @intToEnum(Square, from + 2)));
         }
         if (board.canCastle(.queenside) and queenside & (board.white | board.black) == 0) {
-            move_list.push(Move.castle_move(.queenside));
+            move_list.push(Move.castle_move(.queenside, @intToEnum(Square, from), @intToEnum(Square, from - 3)));
         }
     }
 }
@@ -208,24 +211,28 @@ pub fn pawnMoves(board: *Board, move_list: *MoveList) void {
                 .to = to,
                 .mover = .pawn,
                 .promotion = .queen,
+                .capture = board.pieceOn(@enumToInt(to)),
             });
             move_list.push(Move{
                 .from = from,
                 .to = to,
                 .mover = .pawn,
                 .promotion = .rook,
+                .capture = board.pieceOn(@enumToInt(to)),
             });
             move_list.push(Move{
                 .from = from,
                 .to = to,
                 .mover = .pawn,
                 .promotion = .bishop,
+                .capture = board.pieceOn(@enumToInt(to)),
             });
             move_list.push(Move{
                 .from = from,
                 .to = to,
                 .mover = .pawn,
                 .promotion = .knight,
+                .capture = board.pieceOn(@enumToInt(to)),
             });
         }
 
@@ -238,24 +245,28 @@ pub fn pawnMoves(board: *Board, move_list: *MoveList) void {
                 .to = to,
                 .mover = .pawn,
                 .promotion = .queen,
+                .capture = board.pieceOn(@enumToInt(to)),
             });
             move_list.push(Move{
                 .from = from,
                 .to = to,
                 .mover = .pawn,
                 .promotion = .rook,
+                .capture = board.pieceOn(@enumToInt(to)),
             });
             move_list.push(Move{
                 .from = from,
                 .to = to,
                 .mover = .pawn,
                 .promotion = .bishop,
+                .capture = board.pieceOn(@enumToInt(to)),
             });
             move_list.push(Move{
                 .from = from,
                 .to = to,
                 .mover = .pawn,
                 .promotion = .knight,
+                .capture = board.pieceOn(@enumToInt(to)),
             });
         }
     }
