@@ -1,4 +1,6 @@
 pub const movegen = @import("movegen.zig");
+pub const Move = movegen.Move;
+pub const MoveList = movegen.MoveList;
 
 const board = @import("board.zig");
 pub const Board = board.Board;
