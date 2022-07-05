@@ -31,10 +31,11 @@ pub fn display(bb: u64) void {
 }
 
 pub fn reset(bb: u64) u64 {
-    return asm ("blsr %%rdi, %%rax"
-        : [ret] "={rax}" (-> u64),
-        : [bb] "{rdi}" (bb),
-    );
+    // return asm ("blsr %%rdi, %%rax"
+    //     : [ret] "={rax}" (-> u64),
+    //     : [bb] "{rdi}" (bb),
+    // );
+    return bb & (bb - 1);
 }
 
 pub fn bsf(bb: u64) u6 {
@@ -110,6 +111,20 @@ pub fn upLeft(bb: u64, color: Color) u64 {
 pub fn upRight(bb: u64, color: Color) u64 {
     return switch (color) {
         .white => northEast(bb),
+        .black => southWest(bb),
+    };
+}
+
+pub fn downLeft(bb: u64, color: Color) u64 {
+    return switch (color) {
+        .white => southWest(bb),
+        .black => northEast(bb),
+    };
+}
+
+pub fn downRight(bb: u64, color: Color) u64 {
+    return switch (color) {
+        .white => southEast(bb),
         .black => southWest(bb),
     };
 }

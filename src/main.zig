@@ -15,7 +15,7 @@ pub fn main() anyerror!void {
     var move_list = movegen.MoveList.init();
     movegen.move_gen(&b, &move_list);
     std.debug.print("{}\n", .{move_list});
-    std.debug.print("{}\n", .{rootPerft(&b, 7)});
+    std.debug.print("{}\n", .{rootPerft(&b, 6)});
 }
 
 fn perft(board: *Board, d: usize, debug: bool) usize {

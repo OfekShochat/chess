@@ -30,11 +30,12 @@ pub const Board = struct {
     en_pass: u6,
     white_castling: CastleRights,
     black_castling: CastleRights,
-    hash_stack: ArrayList(u64),
+    // hash_stack: ArrayList(u64),
     hash: u64,
     half_moves: u8,
 
     fn empty(allocator: Allocator) !Board {
+        _ = allocator;
         return Board{
             .turn = .white,
             .white = 0,
@@ -50,13 +51,14 @@ pub const Board = struct {
             .hash = 0,
             .white_castling = .none,
             .black_castling = .none,
-            .hash_stack = try ArrayList(u64).initCapacity(allocator, 256),
+            // .hash_stack = try ArrayList(u64).initCapacity(allocator, 256),
             .half_moves = 0,
         };
     }
 
     pub fn deinit(self: *Board) void {
-        self.hash_stack.deinit();
+        _ = self;
+        // self.hash_stack.deinit();
     }
 
     pub fn fromFen(fen: []const u8, allocator: Allocator) !Board {
@@ -187,8 +189,7 @@ pub const Board = struct {
                 board.set(p, self.turn, to);
             }
         } else if (move.castle) |c| {
-            const as = allAttacks(board);
-            if (as & self.kings & self.us() > 0 or as & magics.castleBlocksOf(self.turn, c) > 0) {
+            if (isAttacked(self.kings & self.us(), board) or isAttacked(magics.castleBlocksOf(self.turn, c), board)) {
                 return error.NotLegal;
             }
             const r = @enumToInt(cornerOf(c, self.turn));

@@ -192,7 +192,23 @@ pub fn allAttacks(board: Board) u64 {
 }
 
 pub fn isAttacked(b: u64, board: Board) bool {
-    return allAttacks(board) & b > 0;
+    const mask = board.white | board.black;
+
+    var as = b;
+    while (as != 0) : (as = bb.reset(as)) {
+        const sq = bb.bsf(as);
+        const sq_bb = bb.fromSquare(sq);
+
+        if (attacksOf(.rook, sq, mask) & ((board.queens | board.rooks) & board.us()) != 0 or
+            attacksOf(.bishop, sq, mask) & ((board.queens | board.bishops) & board.us()) != 0 or
+            attacksOf(.knight, sq, mask) & (board.knights & board.us()) != 0 or
+            attacksOf(.king, sq, mask) & (board.kings & board.us()) != 0 or
+            bb.downLeft(sq_bb, board.turn) | bb.downRight(sq_bb, board.turn) & (board.pawns & board.us()) != 0)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 pub fn attacksOf(comptime p: Piece, sq: u7, white_black: u64) u64 {
